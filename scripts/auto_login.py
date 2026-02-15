@@ -21,6 +21,8 @@ from playwright.sync_api import sync_playwright
 # 代理配置 (留空则不使用)
 # 格式: socks5://user:pass@host:port 或 http://user:pass@host:port
 PROXY_DSN = os.environ.get("PROXY_DSN", "").strip()
+# 飞书机器人 Webhook（可选，不填则不通知）
+LARK_WEBHOOK = os.environ.get("LARK_WEBHOOK", "").strip()
 
 # 固定登录入口，OAuth后会自动跳转到实际区域
 LOGIN_ENTRY_URL = "https://console.run.claw.cloud/login"
@@ -123,6 +125,44 @@ class Telegram:
             time.sleep(2)
         
         return None
+        
+class LarkBot:
+    """飞书机器人通知（支持文本）"""
+    
+    def __init__(self):
+        self.webhook = LARK_WEBHOOK
+        self.ok = bool(self.webhook)
+        if self.webhook and not self.webhook.startswith('https://'):
+            self.webhook = 'https://open.feishu.cn/open-apis/bot/v2/hook/' + self.webhook
+    
+    def send(self, msg):
+        """发送纯文本消息"""
+        if not self.ok:
+            return
+        try:
+            payload = {
+                "msg_type": "text",
+                "content": {"text": msg}
+            }
+            requests.post(self.webhook, json=payload, timeout=30)
+        except Exception as e:
+            print(f"飞书发送失败: {e}")
+    
+    def send_markdown(self, title, content):
+        """发送富文本消息（可选）"""
+        if not self.ok:
+            return
+        try:
+            payload = {
+                "msg_type": "interactive",
+                "card": {
+                    "header": {"title": {"tag": "plain_text", "content": title}},
+                    "elements": [{"tag": "div", "text": {"tag": "lark_md", "content": content}}]
+                }
+            }
+            requests.post(self.webhook, json=payload, timeout=30)
+        except Exception as e:
+            print(f"飞书发送失败: {e}")
 
 
 class SecretUpdater:
@@ -181,6 +221,7 @@ class AutoLogin:
         self.password = os.environ.get('GH_PASSWORD')
         self.gh_session = os.environ.get('GH_SESSION', '').strip()
         self.tg = Telegram()
+        self.lark = LarkBot()
         self.secret = SecretUpdater()
         self.shots = []
         self.logs = []
@@ -383,6 +424,12 @@ class AutoLogin:
         
         self.log("两步验证超时", "ERROR")
         self.tg.send("❌ <b>两步验证超时</b>")
+             if self.lark.ok:
+        # 去除 HTML 标签（飞书纯文本不支持）
+        plain_msg = msg.replace('<b>', '').replace('</b>', '') \
+                        .replace('<i>', '').replace('</i>', '') \
+                        .replace('<tg-spoiler>', '').replace('</tg-spoiler>', '')
+        self.lark.send(plain_msg)
         return False
     
     def handle_2fa_code_input(self, page):
