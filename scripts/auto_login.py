@@ -424,12 +424,6 @@ class AutoLogin:
         
         self.log("两步验证超时", "ERROR")
         self.tg.send("❌ <b>两步验证超时</b>")
-             if self.lark.ok:
-        # 去除 HTML 标签（飞书纯文本不支持）
-        plain_msg = msg.replace('<b>', '').replace('</b>', '') \
-                        .replace('<i>', '').replace('</i>', '') \
-                        .replace('<tg-spoiler>', '').replace('</tg-spoiler>', '')
-        self.lark.send(plain_msg)
         return False
     
     def handle_2fa_code_input(self, page):
