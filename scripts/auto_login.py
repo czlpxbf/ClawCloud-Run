@@ -743,6 +743,15 @@ class AutoLogin:
                 #     self.tg.photo(s, s)
                 if self.shots:
                    self.tg.photo(self.shots[-1], "完成")
+        # 新增飞书通知（纯文本，去除 HTML 标签）
+        if hasattr(self, 'lark') and self.lark.ok:
+            try:
+                plain_msg = msg.replace('<b>', '').replace('</b>', '') \
+                               .replace('<i>', '').replace('</i>', '') \
+                               .replace('<tg-spoiler>', '').replace('</tg-spoiler>', '')
+                self.lark.send(plain_msg)
+            except Exception as e:
+                print(f"飞书通知异常: {e}")
     
     def run(self):
         print("\n" + "="*50)
